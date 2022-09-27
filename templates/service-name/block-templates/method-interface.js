@@ -1,0 +1,1 @@
+  methodName(params: MethodNameParams): MethodNameReturn;
