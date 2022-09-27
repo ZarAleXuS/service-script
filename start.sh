@@ -1,12 +1,14 @@
 #! /bin/bash
 
-# --------- INPUT SERVICE ------------
+# --------- INPUT SERVICE ------------Í
+
+clear
 
 validServiceName=false
 
 while [ $validServiceName = false ]; do
 
-    echo "$(tput setaf 3)Enter service name (camelCase):$(tput setaf 7)"
+    echo "$(tput setaf 8)Enter service name (camelCase):$(tput setaf 7)"
     read serviceName
 
     validServiceName=true
@@ -19,22 +21,89 @@ done
 
 # --------- INPUT METHODS ------------
 
-validMethodNames=false
+methodIndex=0
+declare - a methodNames
+declare - a methodParams
 
-while [ $validMethodNames = false ]; do
+while true; do
 
-    echo "$(tput setaf 3)Enter method names (camelCase):$(tput setaf 7)"
-    read -a methodNames
+    clear
+    echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
 
-    validMethodNames=true
+    # --------- INPUT METHOD NAME ------------
+    validMethodName=false
 
-    for i in "${methodNames[@]}"; do
-        if ! [[ $i =~ ^[a-z]+([A-Z][a-z]+)*[A-Z]?$ ]]; then
-            echo "$(tput setaf 1)Error: Names must be in camelCase."
+    while [ $validMethodName = false ]; do
+        echo "$(tput setaf 8)Enter new method name (camelCase):$(tput setaf 7)"
+        read methodName
+        # TODO quit methods loop
+
+        validMethodName=true
+
+        if ! [[ $methodName =~ ^[a-z]+([A-Z][a-z]+)*[A-Z]?$ ]]; then
+            echo "$(tput setaf 1)Error: Name must be in camelCase.$(tput setaf 7)"
             validMethodNames=false
-            break
         fi
     done
+
+    methodNames[methodIndex]="$methodName"
+
+    params="{ "
+
+    while true; do
+        clear
+        echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
+        echo "$(tput setaf 8)Method #"$methodIndex": $(tput setaf 6)$methodName$(tput setaf 7)"
+
+        # --------- INPUT PARAMETER TYPE ------------
+
+        PS3="$(tput setaf 8)Select new parameter type: $(tput setaf 7)"
+
+        select opt in boolean number string custom quit; do
+            case $opt in
+            boolean | number | string)
+                newParamType="$opt"
+                break
+                ;;
+            custom)
+                newParamType="__BLANK__"
+                break
+                ;;
+            quit)
+                # TODO check for no params and loop
+                break 2
+                ;;
+            *)
+                echo "$(tput setaf 1)Invalid option $REPLY$(tput setaf 7)"
+                ;;
+            esac
+        done
+
+        # --------- INPUT PARAMETER NAME ------------
+
+        validParamName=false
+
+        while [ $validParamName = false ]; do
+
+            echo "$(tput setaf 8)Enter $(tput setaf 7)"$opt"$(tput setaf 8) parameter name (camelCase):$(tput setaf 7)"
+            read newParamName
+
+            validParamName=true
+
+            if ! [[ $newParamName =~ ^[a-z]+([A-Z][a-z]+)*[A-Z]?$ ]]; then
+                echo "$(tput setaf 1)Error: Name must be in camelCase.$(tput setaf 7)"
+                validParamName=false
+            fi
+        done
+
+        params+=""$newParamName": "$newParamName", "
+    done
+
+    params+="}"
+
+    echo "$params"
+
+    methodIndex=$((methodIndex + 1))
 done
 
 # --------- INPUT ERRORS ------------
@@ -43,14 +112,14 @@ validErrorTypes=false
 
 while [ $validErrorTypes = false ]; do
 
-    echo "$(tput setaf 3)Enter error types (camelCase):$(tput setaf 7)"
+    echo "$(tput setaf 8)Enter error types (camelCase):$(tput setaf 7)"
     read -a errorTypes
 
     validErrorTypes=true
 
     for i in "${errorTypes[@]}"; do
         if ! [[ $i =~ ^[a-z]+([A-Z][a-z]+)*[A-Z]?$ ]]; then
-            echo "$(tput setaf 1)Error: Types must be in camelCase."
+            echo "$(tput setaf 1)Error: Types must be in camelCase.$(tput setaf 7)"
             validErrorTypes=false
             break
         fi
