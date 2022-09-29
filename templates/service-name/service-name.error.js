@@ -3,10 +3,8 @@
 import { type GenericErrorType } from '../../../utils/types';
 import { dbError, type DbError } from '../db.error';
 
-export type ServiceNameError = GenericErrorType</*ERROR_TYPE*/> | DbError;
-
-export const serviceNameError = {
-/*ERROR*/
+export type ServiceNameError = /*ERROR_TYPE*/DbError;
     
-  dataBase: dbError,
+export const serviceNameError = {
+/*ERROR*/  dataBase: dbError,
 };

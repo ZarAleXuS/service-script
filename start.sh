@@ -4,62 +4,73 @@
 
 clear
 
-validServiceName=false
-
-while [ $validServiceName = false ]; do
+while true; do
 
     echo "$(tput setaf 8)Enter service name (camelCase):$(tput setaf 7)"
     read serviceName
 
-    validServiceName=true
-
     if ! [[ $serviceName =~ ^[a-z]+([A-Z][a-z]+)*[A-Z]?$ ]]; then
         echo "$(tput setaf 1)Error: Name must be in camelCase."
-        validServiceName=false
+    else
+        break
     fi
 done
 
 # --------- INPUT METHODS ------------
 
 methodIndex=0
-declare - a methodNames
-declare - a methodParams
+declare -a methodNames
+declare -a methodParams
 
 while true; do
 
     clear
     echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
 
+    for i in "${!methodNames[@]}"; do
+        echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ($(tput setaf 3)"${methodParams[$i]}"$(tput setaf 8))$(tput setaf 7)"
+    done
+
     # --------- INPUT METHOD NAME ------------
-    validMethodName=false
 
-    while [ $validMethodName = false ]; do
-        echo "$(tput setaf 8)Enter new method name (camelCase):$(tput setaf 7)"
+    while true; do
+        echo "$(tput setaf 8)Enter new method name (camelCase) [ $(tput setaf 7)Q$(tput setaf 8) to exit ] :$(tput setaf 7)"
         read methodName
-        # TODO quit methods loop
-
-        validMethodName=true
 
         if ! [[ $methodName =~ ^[a-z]+([A-Z][a-z]+)*[A-Z]?$ ]]; then
             echo "$(tput setaf 1)Error: Name must be in camelCase.$(tput setaf 7)"
-            validMethodNames=false
+        else
+            if [ "$methodName" = 'q' ]; then
+                if ((${#methodNames[@]})); then
+                    break 2
+                else
+                    echo "$(tput setaf 1)Error: Service must have at least one method.$(tput setaf 7)"
+                fi
+            else
+                break
+            fi
         fi
     done
 
     methodNames[methodIndex]="$methodName"
 
-    params="{ "
+    params=''
 
     while true; do
         clear
         echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
-        echo "$(tput setaf 8)Method #"$methodIndex": $(tput setaf 6)$methodName$(tput setaf 7)"
+
+        for i in "${!methodNames[@]}"; do
+            echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ("${methodParams[$i]}"$(tput setaf 8))$(tput setaf 7)"
+        done
+
+        echo "$(tput setaf 8)New method: $(tput setaf 6)$methodName$(tput setaf 7)"
 
         # --------- INPUT PARAMETER TYPE ------------
 
         PS3="$(tput setaf 8)Select new parameter type: $(tput setaf 7)"
 
-        select opt in boolean number string custom quit; do
+        select opt in boolean number string custom "next method"; do
             case $opt in
             boolean | number | string)
                 newParamType="$opt"
@@ -69,8 +80,7 @@ while true; do
                 newParamType="__BLANK__"
                 break
                 ;;
-            quit)
-                # TODO check for no params and loop
+            "next method")
                 break 2
                 ;;
             *)
@@ -81,27 +91,22 @@ while true; do
 
         # --------- INPUT PARAMETER NAME ------------
 
-        validParamName=false
+        while true; do
 
-        while [ $validParamName = false ]; do
-
-            echo "$(tput setaf 8)Enter $(tput setaf 7)"$opt"$(tput setaf 8) parameter name (camelCase):$(tput setaf 7)"
+            echo "$(tput setaf 8)Enter $(tput setaf 2)"$opt"$(tput setaf 8) parameter name (camelCase):$(tput setaf 7)"
             read newParamName
-
-            validParamName=true
 
             if ! [[ $newParamName =~ ^[a-z]+([A-Z][a-z]+)*[A-Z]?$ ]]; then
                 echo "$(tput setaf 1)Error: Name must be in camelCase.$(tput setaf 7)"
-                validParamName=false
+            else
+                break
             fi
         done
 
-        params+=""$newParamName": "$newParamName", "
+        params+="$(tput setaf 7)"$newParamName": $(tput setaf 2)"$newParamType"$(tput setaf 8), "
+
+        methodParams[methodIndex]="$(tput setaf 7){ ""$params""$(tput setaf 7)}"
     done
-
-    params+="}"
-
-    echo "$params"
 
     methodIndex=$((methodIndex + 1))
 done
@@ -112,7 +117,14 @@ validErrorTypes=false
 
 while [ $validErrorTypes = false ]; do
 
-    echo "$(tput setaf 8)Enter error types (camelCase):$(tput setaf 7)"
+    clear
+    echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
+
+    for i in "${!methodNames[@]}"; do
+        echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ("${methodParams[$i]}"$(tput setaf 8))$(tput setaf 7)"
+    done
+
+    echo "$(tput setaf 8)Enter error types (camelCase and space-separated):$(tput setaf 7)"
     read -a errorTypes
 
     validErrorTypes=true
@@ -128,6 +140,8 @@ done
 
 # --------- BUILD ------------
 
+echo "$(tput setaf 3)Creating build directory...$(tput setaf 7)"
+
 if find build -type f | read; then
     rm -r build/*
 fi
@@ -135,6 +149,8 @@ fi
 rsync -av --exclude 'block-templates' templates/ build/
 
 # --------- OUTPUT METHODS ------------
+
+echo "$(tput setaf 3)Building methods...$(tput setaf 7)"
 
 METHOD="\/\*METHOD\*\/"
 METHOD_IMPORTS="\/\*METHOD_IMPORTS\*\/"
@@ -171,20 +187,32 @@ sed -i '' -e "s/"$METHOD_PARAMS"/$methodParams/g" -e "s/"$METHOD_DESCRIBE"/$meth
 
 # --------- OUTPUT ERRORS ------------
 
+echo "$(tput setaf 3)Building error types...$(tput setaf 7)"
+
 ERROR="\/\*ERROR\*\/"
 ERROR_TYPE="\/\*ERROR_TYPE\*\/"
 
-for i in "${errorTypes[@]}"; do
-    errorTypeSnakeUpperCase=$(echo ${i} | sed -r 's/([A-Z])/_\1/g' | tr '[:lower:]' '[:upper:]')
-    errorTypeConstants+=" | '""$errorTypeSnakeUpperCase""'"
-    errors+=\\n$(sed -e "s/errorType/$i/g" -e "s/ERROR_TYPE/$errorTypeSnakeUpperCase/g" templates/service-name/block-templates/error.js)\\n
-done
+if ((${#errorTypes[@]})); then
+    for i in "${!errorTypes[@]}"; do
+        errorTypeSnakeUpperCase=$(echo "${errorTypes[$i]}" | sed -r 's/([A-Z])/_\1/g' | tr '[:lower:]' '[:upper:]')
+        if [ $i -ne 0 ]; then
+            errorTypeConstants+=" | "
+        fi
+        errorTypeConstants+="'""$errorTypeSnakeUpperCase""'"
+        errors+=\\n$(sed -e "s/errorType/"${errorTypes[$i]}"/g" -e "s/ERROR_TYPE/$errorTypeSnakeUpperCase/g" templates/service-name/block-templates/error.js)\\n
+    done
 
-errors=$(echo "$errors" | sed '1d' | sed '$d' | sed '$ ! s/$/\\/')
+    errorTypeConstants="GenericErrorType<"$errorTypeConstants"> | "
+    errors=$(echo "$errors" | sed '1d' | sed '$d' | sed '$ ! s/$/\\/')\\n\\n
 
-sed -i '' -e "s/"$ERROR_TYPE"/$errorTypeConstants/g" -e "s/"$ERROR"/$errors/g" build/service-name/service-name.error.js
+    sed -i '' -e "s/"$ERROR_TYPE"/$errorTypeConstants/g" -e "s/"$ERROR"/$errors/g" build/service-name/service-name.error.js
+else
+    sed -i '' -e "s/"$ERROR_TYPE"//g" -e "s/"$ERROR"//g" build/service-name/service-name.error.js
+fi
 
 # --------- OUTPUT SERVICE ------------
+
+echo "$(tput setaf 3)Building service...$(tput setaf 7)"
 
 serviceNamePascal=$(echo $(echo "${serviceName:0:1}" | tr '[a-z]' '[A-Z]')"${serviceName:1}")
 serviceNameKebab=$(echo "$serviceName" | sed -r 's/([A-Z])/-\1/g' | tr '[:upper:]' '[:lower:]')
@@ -196,6 +224,8 @@ for file in build/*/service-name*.**; do
 done
 
 find build/** -type f | xargs sed -i '' -e "s/serviceName/"${serviceName}"/g" -e "s/service-name/"${serviceNameKebab}"/g" -e "s/ServiceName/"${serviceNamePascal}"/g"
+
+echo "$(tput setaf 2)Service created!"
 
 # Regex:
 #   - camelCase => [a-z]+([A-Z][a-z]+)*[A-Z]?
