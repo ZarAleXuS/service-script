@@ -4,7 +4,7 @@ import chai from 'chai';
 import faker from 'faker';
 import sinonChai from 'sinon-chai';
 import {
-/*METHOD_PARAMS*/
+/*METHOD_PARAMS_IMPORTS*/
 } from '../../../../../../src/api/services/db/service-name/index.flow';
 import { serviceNameError } from '../../../../../../src/api/services/db/service-name/service-name.error';
 import { ServiceNameService } from '../../../../../../src/api/services/db/service-name/service-name.service';

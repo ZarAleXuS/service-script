@@ -1,4 +1,4 @@
-export type MethodNameParams = { __BLANK__: __BLANK__ };
+export type MethodNameParams = { /*METHOD_PARAMS*/};
 
 export type MethodNameReturn = NativePromise<
   EitherType<__BLANK__, ServiceNameError>

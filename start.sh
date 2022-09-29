@@ -21,6 +21,7 @@ done
 methodIndex=0
 declare -a methodNames
 declare -a methodParams
+declare -a methodStyledParams
 
 while true; do
 
@@ -28,7 +29,12 @@ while true; do
     echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
 
     for i in "${!methodNames[@]}"; do
-        echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ($(tput setaf 3)"${methodParams[$i]}"$(tput setaf 8))$(tput setaf 7)"
+        if [ "${methodStyledParams[$i]}" = '' ]; then
+            styledParams=''
+        else
+            styledParams="{ "${methodStyledParams[$i]}"}"
+        fi
+        echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ("$styledParams"$(tput setaf 8))$(tput setaf 7)"
     done
 
     # --------- INPUT METHOD NAME ------------
@@ -61,7 +67,12 @@ while true; do
         echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
 
         for i in "${!methodNames[@]}"; do
-            echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ("${methodParams[$i]}"$(tput setaf 8))$(tput setaf 7)"
+            if [ "${methodStyledParams[$i]}" = '' ]; then
+                styledParams=''
+            else
+                styledParams="{ "${methodStyledParams[$i]}"}"
+            fi
+            echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ("$styledParams"$(tput setaf 8))$(tput setaf 7)"
         done
 
         echo "$(tput setaf 8)New method: $(tput setaf 6)$methodName$(tput setaf 7)"
@@ -103,9 +114,9 @@ while true; do
             fi
         done
 
-        params+="$(tput setaf 7)"$newParamName": $(tput setaf 2)"$newParamType"$(tput setaf 8), "
+        methodStyledParams[methodIndex]+="$(tput setaf 7)"$newParamName": $(tput setaf 2)"$newParamType"$(tput setaf 8), "
 
-        methodParams[methodIndex]="$(tput setaf 7){ ""$params""$(tput setaf 7)}"
+        methodParams[methodIndex]+=""$newParamName":"$newParamType","
     done
 
     methodIndex=$((methodIndex + 1))
@@ -121,7 +132,12 @@ while [ $validErrorTypes = false ]; do
     echo "$(tput setaf 8)Service: $(tput setaf 2)$serviceName$(tput setaf 7)"
 
     for i in "${!methodNames[@]}"; do
-        echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ("${methodParams[$i]}"$(tput setaf 8))$(tput setaf 7)"
+        if [ "${methodStyledParams[$i]}" = '' ]; then
+            styledParams=''
+        else
+            styledParams="{ "${methodStyledParams[$i]}"}"
+        fi
+        echo "  $(tput setaf 8)Method #"$(($i + 1))": $(tput setaf 6)"${methodNames[$i]}"$(tput setaf 8) => params: ("$styledParams"$(tput setaf 8))$(tput setaf 7)"
     done
 
     echo "$(tput setaf 8)Enter error types (camelCase and space-separated):$(tput setaf 7)"
@@ -153,22 +169,26 @@ rsync -av --exclude 'block-templates' templates/ build/
 echo "$(tput setaf 3)Building methods...$(tput setaf 7)"
 
 METHOD="\/\*METHOD\*\/"
+METHOD_PARAMS="\/\*METHOD_PARAMS\*\/"
 METHOD_IMPORTS="\/\*METHOD_IMPORTS\*\/"
 METHOD_TYPES="\/\*METHOD_TYPES\*\/"
 METHOD_INTERFACE="\/\*METHOD_INTERFACE\*\/"
 METHOD_MOCK="\/\*METHOD_MOCK\*\/"
-METHOD_PARAMS="\/\*METHOD_PARAMS\*\/"
+METHOD_PARAMS_IMPORTS="\/\*METHOD_PARAMS_IMPORTS\*\/"
 METHOD_DESCRIBE="\/\*METHOD_DESCRIBE\*\/"
 
-for i in "${methodNames[@]}"; do
-    methodNamePascal=$(echo $(echo ${i:0:1} | tr '[a-z]' '[A-Z]')${i:1})
+for i in "${!methodNames[@]}"; do
+    methodNamePascal=$(echo $(echo ${methodNames[$i]:0:1} | tr '[a-z]' '[A-Z]')${methodNames[$i]:1})
+    methodParamsWithTypes=$(echo "${methodParams[$i]}" | sed -r "s/(:|,)/\1 /g")
+    methodParamsWithoutTypes=$(echo "${methodParams[$i]}" | sed -r "s/:([a-z]|[A-Z])*,/, /g")
+    methodParamsWithBlanks=$(echo "${methodParams[$i]}" | sed -r "s/:([a-z]|[A-Z])*,/: __BLANK__, /g")
     methodImports+=$(sed "s/MethodName/$methodNamePascal/g" templates/service-name/block-templates/method-imports.js)\\n
-    methods+=\\n$(sed -e "s/methodName/$i/g" -e "s/MethodName/$methodNamePascal/g" templates/service-name/block-templates/method.js)\\n
-    methodTypes+=\\n$(sed "s/MethodName/$methodNamePascal/g" templates/service-name/block-templates/method-types.js)\\n
-    methodInterfaces+=\\n$(sed -e "s/methodName/$i/g" -e "s/MethodName/$methodNamePascal/g" templates/service-name/block-templates/method-interface.js)\\n
-    methodMocks+=\\n$(sed -e "s/methodName/$i/g" -e "s/MethodName/$methodNamePascal/g" templates/mock/block-templates/method-mock.js)\\n
-    methodParams+=$(sed "s/MethodName/$methodNamePascal/g" templates/tests/block-templates/method-params.js)\\n
-    methodDescribes+=\\n$(sed -e "s/methodName/$i/g" -e "s/MethodName/$methodNamePascal/g" templates/tests/block-templates/method-describe.js)\\n
+    methods+=\\n$(sed -e "s/methodName/"${methodNames[$i]}"/g" -e s/"$METHOD_PARAMS"/"$methodParamsWithoutTypes"/g -e "s/MethodName/$methodNamePascal/g" templates/service-name/block-templates/method.js)\\n
+    methodTypes+=\\n$(sed -e s/"$METHOD_PARAMS"/"$methodParamsWithTypes"/g -e "s/MethodName/$methodNamePascal/g" templates/service-name/block-templates/method-types.js)\\n
+    methodInterfaces+=\\n$(sed -e "s/methodName/"${methodNames[$i]}"/g" -e "s/MethodName/$methodNamePascal/g" templates/service-name/block-templates/method-interface.js)\\n
+    methodMocks+=\\n$(sed -e "s/methodName/"${methodNames[$i]}"/g" -e "s/MethodName/$methodNamePascal/g" templates/mock/block-templates/method-mock.js)\\n
+    methodParamsImports+=$(sed "s/MethodName/$methodNamePascal/g" templates/tests/block-templates/method-params.js)\\n
+    methodDescribes+=\\n$(sed -e "s/methodName/"${methodNames[$i]}"/g" -e s/"$METHOD_PARAMS"/"$methodParamsWithBlanks"/g -e "s/MethodName/$methodNamePascal/g" templates/tests/block-templates/method-describe.js)\\n
 done
 
 methodImports=$(echo "$methodImports" | sed '$d' | sed '$ ! s/$/\\/')
@@ -176,14 +196,14 @@ methods=$(echo "$methods" | sed '$d' | sed '$ ! s/$/\\/')
 methodTypes=$(echo "$methodTypes" | sed '$d' | sed '$ ! s/$/\\/')
 methodInterfaces=$(echo "$methodInterfaces" | sed '1d' | sed '$d' | sed '$ ! s/$/\\/')
 methodMocks=$(echo "$methodMocks" | sed '1d' | sed '$d' | sed '$ ! s/$/\\/')
-methodParams=$(echo "$methodParams" | sed '$d' | sed '$ ! s/$/\\/')
+methodParamsImports=$(echo "$methodParamsImports" | sed '$d' | sed '$ ! s/$/\\/')
 methodDescribes=$(echo "$methodDescribes" | sed '$d' | sed '$ ! s/$/\\/')
 
 sed -i '' "s/"$METHOD_TYPES"/$methodTypes/g" build/service-name/index.flow.js
 sed -i '' -e "s/"$METHOD_IMPORTS"/$methodImports/g" -e "s/"$METHOD"/$methods/g" build/service-name/service-name.service.js
 sed -i '' -e "s/"$METHOD_IMPORTS"/$methodImports/g" -e "s/"$METHOD_INTERFACE"/$methodInterfaces/g" build/service-name/service-name.interface.js
 sed -i '' -e "s/"$METHOD_IMPORTS"/$methodImports/g" -e "s/"$METHOD_MOCK"/$methodMocks/g" build/mock/service-name-service.js
-sed -i '' -e "s/"$METHOD_PARAMS"/$methodParams/g" -e "s/"$METHOD_DESCRIBE"/$methodDescribes/g" build/tests/service-name.service.test.js
+sed -i '' -e "s/"$METHOD_PARAMS_IMPORTS"/$methodParamsImports/g" -e "s/"$METHOD_DESCRIBE"/$methodDescribes/g" build/tests/service-name.service.test.js
 
 # --------- OUTPUT ERRORS ------------
 

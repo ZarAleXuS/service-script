@@ -1,5 +1,5 @@
   describe('#methodName', () => {
-    const paramsMock: MethodNameParams = { __BLANK__: __BLANK__ };
+    const paramsMock: MethodNameParams = { /*METHOD_PARAMS*/};
 
     it('should fail if __BLANK__ throws', async () => {
       const __BLANK__Stub = sandbox

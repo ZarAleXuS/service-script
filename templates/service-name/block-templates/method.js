@@ -1,4 +1,4 @@
-  async methodName({ __BLANK__ }: MethodNameParams): MethodNameReturn {
+  async methodName({ /*METHOD_PARAMS*/}: MethodNameParams): MethodNameReturn {
     try {
       const serviceNameInstance = await this.serviceNameModel.__BLANK__(
         __BLANK__
