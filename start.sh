@@ -257,3 +257,10 @@ echo "$(tput setaf 2)Service created!"
 #   - camelCase to kebab-case => echo ${names[0]} | sed -r 's/([A-Z])/-\1/g' | tr '[:upper:]' '[:lower:]'
 #   - camelCase to PascalCase => $(echo ${names[0]:0:1} | tr '[a-z]' '[A-Z]')${names[0]:1}
 #   - camelCase to SNAKE_UPPER_CASE => echo ${names[0]} | sed -r 's/([A-Z])/_\1/g' | tr '[:lower:]' '[:upper:]'
+
+# TODO
+#   - Fix sed for __BLANK__ param types
+#   - Add Instance to model mock
+#   - Check LoopbackModelInterface params
+#   - Make mock service methods async
+#   - Show errorType camelCase error
